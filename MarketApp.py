@@ -7,6 +7,7 @@ import json
 import csv
 from parameters import paras
 import re
+import BeepBoop
 
 # servers = ['Balmung', 'Brynhildr', 'Coeurl', 'Diabolos', 'Goblin', 'Malboro', 'Mateus', 'Zalera']
 
@@ -40,7 +41,7 @@ class CoeurlConnection:
         else:
             self.user = "bbbot"
             self.password = "bbbot"
-        self._setconn()
+        
 
     def _setconn(self):
         if self.paras != None:
@@ -52,28 +53,32 @@ class CoeurlConnection:
         
 
     def execute(self,string):
-    
+        self._setconn()
         self.cursor.execute(string)
         data = self.cursor.fetchall()
         data = pd.DataFrame(data)
         self.conn.close()
+        self._setconn
         return data
 
     def getworldlist(self):
+        self._setconn()
         self.cursor.execute("SELECT * from worldlist")
         data = self.cursor.fetchall()
         data = pd.DataFrame(data)
         self.conn.close()
+        self._setconn
         return data
     
-    def itemlookup(self,a_string):
-        self.cursor.execute("SELECT * from itemlist where LOWER(itemname) like %s ", ('{}{}{}'.format('%',
-                                                                                                      a_string.lower(),
-                                                                                                      '%'),)
-                                                                                                      )
+    def itemlookup(self,user_string):
+        self._setconn()
+        self.cursor.execute("SELECT * from itemlist where itemname like %s ;", (user_string,))#"{}{}{}".format('%',user_string,'%'), ))
+        # self.cursor.execute("SELECT * FROM itemlist;")                                                                                       
+        # data = self.cursor.fetchall()
         data = self.cursor.fetchall()
-        data = pd.DataFrame(data)
         self.conn.close()
+       
+        
         return data
 
 class UniQuery:
@@ -175,8 +180,10 @@ def bot_test_df():
         df = pd.DataFrame(extract)
         return df
 
-bb = CoeurlConnection()
-
-dboutput = bb.itemlookup("materia")
-
-print(type(dboutput))
+user_string = "%materia%"
+bot = CoeurlConnection(user="bbbot")
+bot._setconn()
+bot.cursor.execute("SELECT * from itemlist where itemname like %s ;", (user_string,))
+results = bot.cursor.fetchall()
+bot.conn.close()
+print(print(results))

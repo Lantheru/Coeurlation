@@ -2,12 +2,13 @@ import os
 import random
 import discord
 import MarketApp
+from MarketApp import *
+import pandas
 from dotenv import load_dotenv
 import dataframe_image as dfi
+import re
 
 servers = ['Balmung', 'Brynhildr', 'Coeurl', 'Diabolos', 'Goblin', 'Malboro', 'Mateus', 'Zalera']
-
-bot = MarketApp.CoeurlConnection(user="bbbot")
 
 def _makefile(df):
     dfi.export(df, 'df_img.png')
@@ -19,6 +20,8 @@ def _logmessage(message, whattowrite = None):
 
     with open('bbtestlog.txt', 'a') as log:
         log.write(whattowrite)
+
+        
 
 
 load_dotenv()
@@ -44,25 +47,39 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
-    message.content = message.content.lower()
 
     if 'help' in message.content:
         await message.channel.send('My current commands are: help, test')
-        break
+        return
 
     if 'bb!' in message.content:
         _logmessage(message)
 
         
         if 'test' in message.content:
+            if 'itemlookup' in message.content:
+                user_string = re.search(r'"(.*?)"',message.content)
+                user_string = user_string.group()
+                print(user_string)
+                data = bot.itemlookup(user_string)
+                if len(data) == 0:
+                    await message.channel.send('I did not find the thing, sheeeiiiit.')
+                    
+
+                if len(data) > 50:
+                    await message.channel.send('bruh be more specific. That produced {} results'.format(len(data)))
+                    
+                if len(data) <= 50 and len(data) > 0:
+                    _makefile(data)
+                    await message.channel.send(file = discord.File('df_img.png'))
             # for type in ['salehistory', 'currentlistings']:
             #     if type in message.content:
             #         query = Uniquery(querytype = type)
             
             
             
-            _makefile(worldlist)
+            # _makefile(worldlist)
 
-            await message.channel.send(file = discord.File('df_img.png'))
+            
 
 client.run(TOKEN)
