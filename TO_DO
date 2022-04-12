@@ -1,0 +1,1 @@
+DFs parsing correctly into bot but still need to find faster way to bypass discord's 2k character limit. Trying to avoid spamming via chunking.
