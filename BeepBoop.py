@@ -10,7 +10,7 @@ import dataframe_image as dfi
 import re
 
 servers = ['Balmung', 'Brynhildr', 'Coeurl', 'Diabolos', 'Goblin', 'Malboro', 'Mateus', 'Zalera']
-bot = CoeurlConnection(user='bbbot')
+
 
 #need to update: records message that prompted a command and saves it into bbtestlog.txt
 def _logmessage(message, whattowrite = None):
@@ -21,17 +21,7 @@ def _logmessage(message, whattowrite = None):
     with open('bbtestlog.txt', 'a') as log:
         log.write(whattowrite)
 
-        
-#saves dataframe as image so it can be sent through discord and isn't character limited
-# def _makefile(df, name = 'uniquery'):
-#     with open('uniquery.png','w') as myfile:
-#         dfi.export(df, myfile, max_rows= -1)
-#         to_disc = myfile
-#         myfile.close()
-#         return to_disc
-    # dfi.export(df, name, max_rows= -1)
 
-        
 
 
 load_dotenv()
@@ -39,13 +29,12 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 
 client = discord.Client()
-bot = CoeurlConnection()
+theDB = CoeurlConnection()
 
 @client.event
 ##ready message when logged in
 async def on_ready():
     for guild in client.guilds:
-        print(guild)
         if guild.name == GUILD:
             break
 
@@ -75,17 +64,19 @@ async def on_message(message):
         if 'lookupitem' in words:
             user_string = re.search(r'"(.*?)"',message.content)
             user_string = user_string.group().strip('"')
-            data = bot.itemlookup(user_string)
+            data = theDB.itemlookup(user_string)
             if len(data) == 0:
                 await message.channel.send('I did not find the thing, sadface dot execute')
                 
 
-            if len(data) > 50:
+            if len(data) > 200:
                 await message.channel.send('That produced {} results. I\'m limited to 50'.format(len(data)))
                 
-            if len(data) <= 50 and len(data) > 0:
-                _makefile(data, 'lookup.png')
-                await message.channel.send(file = discord.File('lookup.png'))
+            if len(data) <= 200 and len(data) > 0:
+                with io.BytesIO() as temp:
+                    dfi.export(data,temp, max_rows = -1)
+                    temp.seek(0)
+                    await message.channel.send(file = discord.File(temp,'lookup.png',))
         
         elif 'currentlistings' or 'salehistory' in words:
             if 'salehistory' in words:
@@ -100,11 +91,11 @@ async def on_message(message):
             user_itemids = user_itemids.group().replace("$","")
            
             user_query = UniQuery(user_world, user_itemids, user_querytype)
-            df = user_query.df
-            # data = bot.itemlookup(user_string)
-            
-            botresponse=df.to_csv()
-            await message.channel.send(file = "{}&{}.xlsx".format(user_world,user_itemids))
+            with io.BytesIO() as temp:
+                dfi.export(user_query,temp, max_rows = -1)
+                temp.seek(0)
+               
+                await message.channel.send(file = temp)
 
 
 client.run(TOKEN)
