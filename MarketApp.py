@@ -136,9 +136,6 @@ class UniQuery:
                 worldid = data["worldID"]
                 worldname = data["worldName"]
                 itemname = self.ilist[self.ilist.index == itemid].values[0][0]
-                # for row in self.ilist:
-                #         if int(itemid) in row['itemid'].values:
-                #             itemname = row['itemname'].values[0]
                 lastuploadtime = data["lastUploadTime"]
                 for listing in data["listings"]:
                     realtime = time.ctime(listing['lastReviewTime'])
@@ -147,6 +144,7 @@ class UniQuery:
                     for x in listing:
                         var = str(x)
                         rowdict[var] = listing[var]
+        
                     extract.append(rowdict)
         
         df = pd.DataFrame(extract)
@@ -155,6 +153,7 @@ class UniQuery:
                 'postedAt','pricePerUnit', 'quantity', 'total',
                 'creatorID','listingID', 'hq', 'isCrafted', 
                 'retainerCity', 'retainerName','lastUploadTime','lastReviewTime', 'sellerID']]
+    
         
         
         # df = df[['lastreviewtime','itemID','worldID', 'worldName','itemname','iscrafted', 'creatorID','hq','listingID','retainerName','sellerID','quantity','total']]
@@ -203,6 +202,9 @@ class UniQuery:
         df = pd.DataFrame(extract)
         return df
 
+
+# bot = UniQuery(connect, worldnames='Coeurl', itemids = '6548', querytype='currentlistings')
+# print(bot.df.index)
 
 # _currenttodf()
 # #pd.DataFrame.to_sql(listings, conn, if_exists = 'append')
