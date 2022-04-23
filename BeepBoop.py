@@ -7,6 +7,7 @@ from MarketApp import *
 import pandas
 from dotenv import load_dotenv
 import dataframe_image as dfi
+from parameters import paras
 import re
 
 servers = ['Balmung', 'Brynhildr', 'Coeurl', 'Diabolos', 'Goblin', 'Malboro', 'Mateus', 'Zalera']
@@ -28,8 +29,9 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 
+user = "bbbot"
 client = discord.Client()
-theDB = CoeurlConnection()
+theDB = psycopg2.connect(database='coeurlation', user=user, password=paras['users'][user])
 
 @client.event
 ##ready message when logged in
@@ -53,26 +55,37 @@ async def on_message(message):
 
     if 'bb!' in words:
         _logmessage(message)
-        
+        print(f'request received from {message.author}: {message.content}')
         
         if 'help' in words:
-            await message.channel.send(
-                'Hello! Please make sure all commands are preceeded by "bb!". My commands are currently:\n\nLookupitem: Takes a word enveloped by double quotation marks and forms a list of matching names and their FFXIV id numbers.\n**Example**\nbb! lookupitem "materia"\n\nCurrentlisting or Salehistory: Returns instances of the item currently listed in the marketplace or its history of sales in the last week. Please provide server names within @ symbols and separated by commas and item ids within $ symbols separated by commas.\n **Example**\nbb! currentlistings @Coeurl,Balmung@ #6548,7490#'
-                                        )
+            print("I'm helping...")
+            await message.channel.send("""
+                                        Hello! Please make sure all commands are preceeded by "bb!". My commands are currently:\n\n
+                                        Lookupitem: Takes a word enveloped by double quotation marks and forms a list of matching names and their FFXIV id numbers.\n
+                                        **__Example__**\nbb! lookupitem "materia"
+                                        \n\ncurrentlisting or salehistory: Returns instances of the item currently listed in the marketplace or its history of sales in the last week. please provide a single server name within @ symbols as well as a single item id within $ symbols. File size limitations make it very hard to transfer
+                                        \n **__Example__**\n
+                                        bb! currentlistings @Coeurl@ #6548#'
+                                        """)
             return
 
         if 'lookupitem' in words:
+            
             user_string = re.search(r'"(.*?)"',message.content)
             user_string = user_string.group().strip('"')
             data = theDB.itemlookup(user_string)
+            print(f"Looking up string fragment {user_string}")
             if len(data) == 0:
+                print("No Results")
                 await message.channel.send('I did not find the thing, sadface dot execute')
                 
 
             if len(data) > 200:
-                await message.channel.send('That produced {} results. I\'m limited to 50'.format(len(data)))
+                print("Too many results found")
+                await message.channel.send('That produced {} results. I\'m limited to 200'.format(len(data)))
                 
             if len(data) <= 200 and len(data) > 0:
+                print("Sending dataframe to discord")
                 with io.BytesIO() as temp:
                     dfi.export(data,temp, max_rows = -1)
                     temp.seek(0)
@@ -89,13 +102,28 @@ async def on_message(message):
             user_itemids = re.search(r'\$(.*?)\$',message.content)
            
             user_itemids = user_itemids.group().replace("$","")
-           
             user_query = UniQuery(user_world, user_itemids, user_querytype)
-            with io.BytesIO() as temp:
-                dfi.export(user_query,temp, max_rows = -1)
-                temp.seek(0)
-               
-                await message.channel.send(file = temp)
+            print(f"{user_querytype} was {len(user_query.df.values)} rows long")
+
+            if len(user_query.df.index) > 5000:
+                await message.channel.send('Dataframe exceeded 5,000 entries, just no.')
+            else:
+                if user_querytype == 'currentlistings':
+                    df = user_query.df.drop(['creatorID', 'listingID','retainerCity', 'lastUploadTime', 'lastReviewTime', 'sellerID','isCrafted'], axis=1)
+                    df = df.sort_values(['itemID','worldID','pricePerUnit'])
+                
+                elif user_querytype == 'salehistory':
+                    df = user_query.df[['worldID', 'worldName', 'itemName', 'hq', 'pricePerUnit', 'quantity', 'soldAt']]
+                    df = df.sort_values(['itemName','worldID','pricePerUnit'])
+
+
+                await message.channel.send(f"Getting the juice ready....Dataframe is {len(user_query.df.index)} rows long")
+                with io.BytesIO() as temp:
+                    dfi.export(df,temp, max_rows = -1)
+                    temp.seek(0)
+                
+                
+                    await message.channel.send(file = discord.File(temp, 'userquery.png'))
 
 
 client.run(TOKEN)
